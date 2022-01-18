@@ -6,26 +6,12 @@ type array struct {
 	sz      int
 }
 
-func (b *array) assert() {
-	/*
-		hdr1 := (*reflect.SliceHeader)(unsafe.Pointer(&b.content))
-		b8 := b._ptr[8:]
-		hdr2 := (*reflect.SliceHeader)(unsafe.Pointer(&b8))
-		if hdr1.Data != hdr2.Data {
-			fmt.Printf("%d %d\n", hdr1.Data, hdr2.Data)
-			panic("content pointer is wrong")
-		}
-	*/
-}
-
 func (b *array) add(v uint32) {
-	b.assert()
 	x := uint16(v)
 	// Special case adding to the end of the container.
 	l := len(b.content)
 	if l > 0 && l < b.sz && b.content[l-1] < x {
 		b.content = append(b.content, x)
-		b.assert()
 		return
 	}
 
@@ -37,7 +23,6 @@ func (b *array) add(v uint32) {
 		copy(s[i+1:], s[i:])
 		s[i] = x
 		b.content = s
-		b.assert()
 		return
 	}
 }

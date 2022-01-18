@@ -56,7 +56,7 @@ func NewBitmap(nbits int) *Bitmap {
 }
 
 func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
-	if len(buf) < 8 {
+	if len(buf) < headerSize {
 		return nil, errors.New("invalid data")
 	}
 	var h header
@@ -188,6 +188,9 @@ func (b *Bitmap) And(o *Bitmap) {
 	if b == o || o == nil {
 		return
 	}
+	if b.nbits != o.nbits {
+		return
+	}
 	if b.encoding == encodingArray {
 		if o.encoding == encodingArray {
 			b.array.and(o.array)
@@ -210,6 +213,9 @@ func (b *Bitmap) Or(o *Bitmap) {
 	if b == o || o == nil {
 		return
 	}
+	if b.nbits != o.nbits {
+		return
+	}
 	if b.encoding == encodingArray {
 		if o.encoding == encodingArray {
 			b.array.or(o.array)
@@ -230,6 +236,9 @@ func (b *Bitmap) Or(o *Bitmap) {
 }
 
 func (b *Bitmap) AndNot(o *Bitmap) {
+	if b.nbits != o.nbits {
+		return
+	}
 	if b.encoding == encodingArray {
 		if o.encoding == encodingArray {
 			b.array.andNot(o.array)
@@ -250,6 +259,12 @@ func (b *Bitmap) FlipInt(start, stop int) {
 	if start >= stop {
 		return
 	}
+	if start < 0 {
+		start = 0
+	}
+	if stop >= b.nbits {
+		stop = b.nbits - 1
+	}
 	if b.encoding == encodingArray {
 		b.convertEncoding(encodingBitmap)
 	}
@@ -266,6 +281,9 @@ func (b *Bitmap) Equals(o *Bitmap) bool {
 		return false
 	}
 	if o != nil && b == nil {
+		return false
+	}
+	if b.nbits != o.nbits {
 		return false
 	}
 	if b.GetCardinality() != o.GetCardinality() {
@@ -301,13 +319,10 @@ func (b *Bitmap) convertEncoding(encoding byte) {
 	}
 	data := make([]uint16, b.GetCardinality())
 	if encoding == encodingArray {
-		b.bitmap.assert()
 		b.bitmap.nextSetMany16(data)
 		b.array.content = toUint16Slice(b.buf[headerSize:], len(data))
 		copy(b.array.content, data)
-		b.array.assert()
 	} else {
-		b.array.assert()
 		copy(data, b.array.content)
 		// Clear memory (must clear the bitmap).
 		for i := 0; i < len(b.buf); i++ {
@@ -317,7 +332,6 @@ func (b *Bitmap) convertEncoding(encoding byte) {
 		for _, v := range data {
 			b.bitmap.add(uint32(v))
 		}
-		b.bitmap.assert()
 	}
 	b.encoding = encoding
 }

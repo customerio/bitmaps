@@ -16,31 +16,11 @@ type bitmap struct {
 	cardinality int
 }
 
-func (b *bitmap) assert() {
-	/*
-		hdr1 := (*reflect.SliceHeader)(unsafe.Pointer(&b.set))
-		b8 := b._ptr[8:]
-		hdr2 := (*reflect.SliceHeader)(unsafe.Pointer(&b8))
-		if hdr1.Data != hdr2.Data {
-			fmt.Printf("%d %d\n", hdr1.Data, hdr2.Data)
-			panic("set pointer is wrong")
-		}
-		if len(b.set) != bodySize/8 {
-			panic("length wrong")
-		}
-		if b.cardinality != int(b.computeCardinality()) {
-			panic("incorrect cardinality")
-		}
-	*/
-}
-
 func (b *bitmap) contains(v uint32) bool {
-	b.assert()
 	return b.set[v>>log2WordSize]&(1<<(v&(wordSize-1))) != 0
 }
 
 func (b *bitmap) bitValue(v uint32) int {
-	b.assert()
 	if int(b.set[v>>log2WordSize]&(1<<(v&(wordSize-1)))) != 0 {
 		return 1
 	}
@@ -48,8 +28,6 @@ func (b *bitmap) bitValue(v uint32) int {
 }
 
 func (b *bitmap) add(v uint32) {
-	b.assert()
-
 	idx := v >> log2WordSize
 	previous := b.set[idx]
 	mask := uint64(1 << (v & (wordSize - 1)))
@@ -77,7 +55,6 @@ func (b *bitmap) and(o bitmap) {
 }
 
 func (b *bitmap) or(o bitmap) {
-	b.assert()
 	l := len(o.set)
 	cnt := 0
 	for i := 0; i < l; i++ {
@@ -89,7 +66,6 @@ func (b *bitmap) or(o bitmap) {
 }
 
 func (b *bitmap) andNot(o bitmap) {
-	b.assert()
 	l := len(o.set)
 	cnt := 0
 	for i := 0; i < l; i++ {
@@ -101,14 +77,12 @@ func (b *bitmap) andNot(o bitmap) {
 }
 
 func (b *bitmap) andNotArray(o array) {
-	b.assert()
 	for _, e := range o.content {
 		b.remove(uint32(e))
 	}
 }
 
 func (b *bitmap) flip(start, stop int) {
-	b.assert()
 	startWord := start >> log2WordSize
 	endWord := stop >> log2WordSize
 	b.set[startWord] ^= ^(^uint64(0) << (start & (wordSize - 1)))

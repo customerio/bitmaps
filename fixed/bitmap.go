@@ -49,7 +49,7 @@ func NewBitmap(nbits int) *Bitmap {
 }
 
 func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
-	if len(buf) < 8 {
+	if len(buf) < headerSize {
 		return nil, errors.New("invalid data")
 	}
 	var h header
@@ -173,6 +173,12 @@ func (b *Bitmap) AndNot(o *Bitmap) {
 func (b *Bitmap) FlipInt(start, stop int) {
 	if start >= stop {
 		return
+	}
+	if start < 0 {
+		start = 0
+	}
+	if stop >= b.nbits {
+		stop = b.nbits - 1
 	}
 	startWord := start >> log2WordSize
 	endWord := stop >> log2WordSize
@@ -342,7 +348,7 @@ func FlipBitmap(b *Bitmap, start, stop int) *Bitmap {
 }
 
 func bodySize(nbits int) int {
-	return headerSize + (8 * ((nbits / 64) + 1))
+	return headerSize + (8 * ((nbits / wordSize) + 1))
 }
 
 func totalSize(nbits int) int {
