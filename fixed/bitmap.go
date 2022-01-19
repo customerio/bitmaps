@@ -82,9 +82,11 @@ func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 		if len(buf[headerSize:])/2 != int(h.cardinality) {
 			return nil, fmt.Errorf("array encoding expects %d bytes", h.cardinality*2)
 		}
-		data := toUint16Slice(buf[headerSize:], int(h.cardinality))
-		for _, v := range data {
-			b.Add(uint32(v))
+		if h.cardinality > 0 {
+			data := toUint16Slice(buf[headerSize:], int(h.cardinality))
+			for _, v := range data {
+				b.Add(uint32(v))
+			}
 		}
 		return b, nil
 	}
@@ -116,8 +118,10 @@ func (b *Bitmap) Marshal() ([]byte, error) {
 		cardinality: uint16(l),
 	}
 	header.write(buf)
-	data := toUint16Slice(buf[headerSize:], l)
-	b.nextSetMany16(data)
+	if l > 0 {
+		data := toUint16Slice(buf[headerSize:], l)
+		b.nextSetMany16(data)
+	}
 	return buf, nil
 }
 

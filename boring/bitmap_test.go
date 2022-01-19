@@ -285,6 +285,39 @@ func TestFlipRange(t *testing.T) {
 	}
 }
 
+func TestMarshalUnmarshalEmpty(t *testing.T) {
+	b := NewBitmap(nbits)
+	if !b.IsEmpty() {
+		t.Error("bitmap should be empty")
+		return
+	}
+	if b.GetCardinality() != 0 {
+		t.Error("card should be 0")
+		return
+	}
+	buf, err := b.Marshal()
+	if err != nil {
+		t.Error("Error marshalling: ", err)
+		return
+	}
+	b1, err := NewBitmapFromBuf(buf, nbits, true)
+	if err != nil {
+		t.Error("Error marshalling: ", err)
+		return
+	}
+	if !b1.Equals(b) {
+		t.Error("bitmaps should be equal")
+	}
+	if !b1.IsEmpty() {
+		t.Error("bitmap should be empty")
+		return
+	}
+	if b1.GetCardinality() != 0 {
+		t.Error("card should be 0")
+		return
+	}
+}
+
 func TestMarshalUnmarshalSmall(t *testing.T) {
 	bits := []uint32{1, 3, 5, 7, 9, 11, 13, 15, 12345}
 	b := NewBitmap(nbits)
