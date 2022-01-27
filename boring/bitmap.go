@@ -34,6 +34,7 @@ type Bitmap struct {
 	bitmap   bitmap
 }
 
+// NewBitmap returns a fixed size bitmap with a capacity for nbits of storage.
 func NewBitmap(nbits int) *Bitmap {
 	totalSize := totalSize(nbits)
 	buf := make([]byte, totalSize)
@@ -55,6 +56,9 @@ func NewBitmap(nbits int) *Bitmap {
 	}
 }
 
+// NewBitmapFromBuf returns a fixed size bitmap with a capacity for nbits of storage.
+// The bitmap is initialized from the marshaled form. If copyBuffer is true, the buffer
+// is copied, otherwise it may be used by the bitmap itself.
 func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 	if len(buf) < headerSize {
 		return nil, errors.New("invalid data")
@@ -118,6 +122,7 @@ func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 	return nil, fmt.Errorf("bad encoding")
 }
 
+// Bytes returns a pointer to the content of the bitmap.
 func (b *Bitmap) Bytes() []byte {
 	var header = header{
 		magic:       bitmapMagic,
@@ -132,15 +137,21 @@ func (b *Bitmap) Bytes() []byte {
 	return buf
 }
 
+// Marshal returns a binary encoding of the bitmap. The data
+// returned may point to the internals of the bitmap itself,
+// and if the bitmap is subsequently changed the marshaled form
+// may change.
 func (b *Bitmap) Marshal() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// Bytes returns a pointer to the content of the bitmap.
 func (b *Bitmap) Clone() *Bitmap {
 	c, _ := NewBitmapFromBuf(b.Bytes(), b.nbits, true)
 	return c
 }
 
+// Add the integer x to the bitmap.
 func (b *Bitmap) Add(v uint32) {
 	if b.encoding == encodingArray {
 		b.array.add(v)
@@ -150,10 +161,12 @@ func (b *Bitmap) Add(v uint32) {
 	}
 }
 
+// AddInt adds the integer x to the bitmap (convenience method: the parameter is casted to uint32 and we call Add).
 func (b *Bitmap) AddInt(v int) {
 	b.Add(uint32(v))
 }
 
+// Remove the integer x from the bitmap.
 func (b *Bitmap) Remove(v uint32) {
 	if b.encoding == encodingArray {
 		b.array.remove(v)
@@ -163,6 +176,7 @@ func (b *Bitmap) Remove(v uint32) {
 	}
 }
 
+// Contains returns true if the integer is contained in the bitmap.
 func (b *Bitmap) Contains(v uint32) bool {
 	if b.encoding == encodingArray {
 		return b.array.contains(v)
@@ -184,6 +198,7 @@ func (b *Bitmap) convertMaybe() {
 	}
 }
 
+// And computes the intersection between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmap) And(o *Bitmap) {
 	if b == o || o == nil {
 		return
@@ -209,6 +224,7 @@ func (b *Bitmap) And(o *Bitmap) {
 	b.convertMaybe()
 }
 
+// Or computes the union between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmap) Or(o *Bitmap) {
 	if b == o || o == nil {
 		return
@@ -235,6 +251,7 @@ func (b *Bitmap) Or(o *Bitmap) {
 	}
 }
 
+// Or computes the union between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmap) AndNot(o *Bitmap) {
 	if b.nbits != o.nbits {
 		return
@@ -255,6 +272,8 @@ func (b *Bitmap) AndNot(o *Bitmap) {
 	b.convertMaybe()
 }
 
+// Flip negates the bits in the given range (i.e., [start,stop)), any integer present in this
+// range and in the bitmap is removed, and any integer present in the range and not in the bitmap is added.
 func (b *Bitmap) FlipInt(start, stop int) {
 	if start >= stop {
 		return
@@ -273,6 +292,7 @@ func (b *Bitmap) FlipInt(start, stop int) {
 	b.convertMaybe()
 }
 
+// Equals returns true if the two bitmaps are the same, false otherwise.
 func (b *Bitmap) Equals(o *Bitmap) bool {
 	if o == nil && b == nil {
 		return true
@@ -305,6 +325,7 @@ func (b *Bitmap) Equals(o *Bitmap) bool {
 	return true
 }
 
+// GetCardinality returns the number of integers contained in the bitmap.
 func (b *Bitmap) GetCardinality() uint64 {
 	if b.encoding == encodingArray {
 		return uint64(len(b.array.content))
@@ -336,10 +357,12 @@ func (b *Bitmap) convertEncoding(encoding byte) {
 	b.encoding = encoding
 }
 
+// IsEmpty returns true if the Bitmap is empty.
 func (b *Bitmap) IsEmpty() bool {
 	return b.GetCardinality() == 0
 }
 
+// ToArray creates a new slice containing all of the integers stored in the Bitmap in sorted order
 func (b *Bitmap) ToArray() []uint32 {
 	indices := make([]uint32, b.GetCardinality())
 	if b.encoding == encodingArray {
@@ -352,9 +375,10 @@ func (b *Bitmap) ToArray() []uint32 {
 	return indices
 }
 
-func AndBitmaps(bitmaps ...*Bitmap) *Bitmap {
+// And computes the intersection between the bitmaps and returns the result.
+func AndBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {
-		return NewBitmap(0)
+		return NewBitmap(nbits)
 	}
 	b := bitmaps[0].Clone()
 	for _, o := range bitmaps[1:] {
@@ -363,9 +387,10 @@ func AndBitmaps(bitmaps ...*Bitmap) *Bitmap {
 	return b
 }
 
-func OrBitmaps(bitmaps ...*Bitmap) *Bitmap {
+// Or computes the union between the bitmaps and stores the returns the result.
+func OrBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {
-		return NewBitmap(0)
+		return NewBitmap(nbits)
 	}
 	b := bitmaps[0].Clone()
 	for _, o := range bitmaps[1:] {
@@ -374,14 +399,15 @@ func OrBitmaps(bitmaps ...*Bitmap) *Bitmap {
 	return b
 }
 
+// AndNot computes the difference between the bitmaps and returns the result.
 func AndNotBitmap(a *Bitmap, b *Bitmap) *Bitmap {
 	c := a.Clone()
 	c.AndNot(b)
 	return c
 }
 
+// FlipBitmap negates the bits in the the bitmaps range and returns the result.
 func FlipBitmap(b *Bitmap, start, stop int) *Bitmap {
-	// XXX: Does this need to clone?
 	c := b.Clone()
 	c.FlipInt(start, stop)
 	return c

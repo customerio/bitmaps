@@ -325,9 +325,9 @@ func (b *Bitmap) nextSetMany32(buffer []uint32) {
 }
 
 // And computes the intersection between the bitmaps and returns the result.
-func AndBitmaps(bitmaps ...*Bitmap) *Bitmap {
+func AndBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {
-		return NewBitmap(0)
+		return NewBitmap(nbits)
 	}
 	b := bitmaps[0].Clone()
 	for _, o := range bitmaps[1:] {
@@ -337,9 +337,9 @@ func AndBitmaps(bitmaps ...*Bitmap) *Bitmap {
 }
 
 // Or computes the union between the bitmaps and stores the returns the result.
-func OrBitmaps(bitmaps ...*Bitmap) *Bitmap {
+func OrBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {
-		return NewBitmap(0)
+		return NewBitmap(nbits)
 	}
 	b := bitmaps[0].Clone()
 	for _, o := range bitmaps[1:] {

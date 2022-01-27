@@ -129,8 +129,8 @@ func TestOrBitmaps(t *testing.T) {
 	for i := uint32(100); i < 200; i++ {
 		b.Add(i)
 	}
-	c := OrBitmaps(a, b)
-	d := OrBitmaps(b, a)
+	c := OrBitmaps(nbits, a, b)
+	d := OrBitmaps(nbits, b, a)
 	if c.GetCardinality() != 200 {
 		t.Errorf("Union should have 200 bits set, but had %d", c.GetCardinality())
 	}
@@ -175,8 +175,8 @@ func TestAndBitmaps(t *testing.T) {
 	for i := uint32(100); i < 200; i++ {
 		b.Add(i)
 	}
-	c := AndBitmaps(a, b)
-	d := AndBitmaps(b, a)
+	c := AndBitmaps(nbits, a, b)
+	d := AndBitmaps(nbits, b, a)
 	if c.GetCardinality() != 50 {
 		t.Errorf("Intersection should have 50 bits set, but had %d", c.GetCardinality())
 	}
