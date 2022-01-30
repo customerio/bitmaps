@@ -10,14 +10,14 @@ type Bitmaps struct {
 }
 
 type Size struct {
-	nbits   uint32
-	nchunks int
+	Bits   uint32
+	Chunks int
 }
 
 func New(sz Size) *Bitmaps {
 	return &Bitmaps{
 		sz: sz,
-		b:  make([]*fixed.Bitmap, sz.nchunks),
+		b:  make([]*fixed.Bitmap, sz.Chunks),
 	}
 }
 
@@ -59,7 +59,7 @@ func (b *Bitmaps) Or(o *Bitmaps) {
 	}
 	for i := 0; i < len(b.b); i++ {
 		if b.b[i] == nil && o.b[i] != nil {
-			b.b[i] = fixed.NewBitmap(int(b.sz.nbits))
+			b.b[i] = fixed.NewBitmap(int(b.sz.Bits))
 		}
 		if o.b[i] != nil {
 			b.b[i].Or(o.b[i])
@@ -131,10 +131,10 @@ func (b *Bitmaps) IsEmpty() bool {
 
 // Add the integer x to the bitmap.
 func (b *Bitmaps) Add(v uint32) {
-	chunk := v / b.sz.nbits
-	offset := v % b.sz.nbits
+	chunk := v / b.sz.Bits
+	offset := v % b.sz.Bits
 	if b.b[chunk] == nil {
-		b.b[chunk] = fixed.NewBitmap(int(b.sz.nbits))
+		b.b[chunk] = fixed.NewBitmap(int(b.sz.Bits))
 	}
 	b.b[chunk].Add(offset)
 }
@@ -146,8 +146,8 @@ func (b *Bitmaps) AddInt(v int) {
 
 // Remove the integer x from the bitmap.
 func (b *Bitmaps) Remove(v uint32) {
-	chunk := v / b.sz.nbits
-	offset := v % b.sz.nbits
+	chunk := v / b.sz.Bits
+	offset := v % b.sz.Bits
 	if b.b[chunk] != nil {
 		b.b[chunk].Remove(offset)
 	}
@@ -155,8 +155,8 @@ func (b *Bitmaps) Remove(v uint32) {
 
 // Contains returns true if the integer is contained in the bitmap.
 func (b *Bitmaps) Contains(v uint32) bool {
-	chunk := v / b.sz.nbits
-	offset := v % b.sz.nbits
+	chunk := v / b.sz.Bits
+	offset := v % b.sz.Bits
 	if b.b[chunk] != nil {
 		return b.b[chunk].Contains(offset)
 	}
@@ -169,7 +169,7 @@ func (b *Bitmaps) ToArray() []uint32 {
 	for chunk, bits := range b.b {
 		arr := bits.ToArray()
 		for _, v := range arr {
-			a = append(a, uint32(chunk)*b.sz.nbits+v)
+			a = append(a, uint32(chunk)*b.sz.Bits+v)
 		}
 	}
 	return a
