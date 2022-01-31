@@ -86,23 +86,16 @@ func (b *Bitmaps) AndNot(o *Bitmaps) {
 	}
 }
 
-// Flip negates the bits in the given range (i.e., [start,stop)), any integer present in this
-// range and in the bitmap is removed, and any integer present in the range and not in the bitmap is added.
-/*
-func (b *Bitmap) FlipInt(start, stop int) {
-	if start >= stop {
-		return
+// Flip negates the bits in the entire bitmap. Any integer present in the bitmap is removed, and
+// any integer present in the bitmap is added.
+func (b *Bitmaps) Flip() {
+	for i := 0; i < len(b.b); i++ {
+		if b.b[i] == nil {
+			b.b[i] = fixed.NewBitmap(int(b.sz.Bits))
+		}
+		b.b[i].FlipInt(0, int(b.sz.Bits))
 	}
-	startWord := start >> log2WordSize
-	endWord := stop >> log2WordSize
-	b.set[startWord] ^= ^(^uint64(0) << (start & (wordSize - 1)))
-	for i := startWord; i < endWord; i++ {
-		b.set[i] = ^b.set[i]
-	}
-	b.set[endWord] ^= ^uint64(0) >> (-stop & (wordSize - 1))
-	b.cardinality = int(b.computeCardinality())
 }
-*/
 
 // Equals returns true if the two bitmaps are the same, false otherwise.
 func (b *Bitmaps) Equals(o *Bitmaps) bool {
