@@ -36,6 +36,13 @@ func (b *Bitmaps) Clone() *Bitmaps {
 	return b1
 }
 
+func (b *Bitmaps) Bitmaps() []*fixed.Bitmap {
+	// TODO:
+	// - Return a clone?
+	// - Do we need to add all the empty bitmaps?
+	return b.b
+}
+
 // And computes the intersection between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmaps) And(o *Bitmaps) {
 	if len(b.b) != len(o.b) {
@@ -69,6 +76,14 @@ func (b *Bitmaps) Or(o *Bitmaps) {
 
 // Or computes the union between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmaps) AndNot(o *Bitmaps) {
+	if len(b.b) != len(o.b) {
+		return
+	}
+	for i := 0; i < len(b.b); i++ {
+		if b.b[i] != nil && o.b[i] != nil {
+			b.b[i].AndNot(o.b[i])
+		}
+	}
 }
 
 // Flip negates the bits in the given range (i.e., [start,stop)), any integer present in this
