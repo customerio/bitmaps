@@ -21,6 +21,10 @@ func New(sz Size) *Bitmaps {
 	}
 }
 
+func (b *Bitmaps) Size() Size {
+	return b.sz
+}
+
 func (b *Bitmaps) Set(chunk uint32, bits *fixed.Bitmap) {
 	b.b[chunk] = bits
 }
