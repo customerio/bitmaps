@@ -179,9 +179,11 @@ func (b *Bitmaps) Contains(v uint32) bool {
 func (b *Bitmaps) ToArray() []uint32 {
 	a := []uint32{}
 	for chunk, bits := range b.b {
-		arr := bits.ToArray()
-		for _, v := range arr {
-			a = append(a, uint32(chunk)*b.sz.Bits+v)
+		if bits != nil {
+			arr := bits.ToArray()
+			for _, v := range arr {
+				a = append(a, uint32(chunk)*b.sz.Bits+v)
+			}
 		}
 	}
 	return a
