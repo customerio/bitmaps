@@ -324,6 +324,69 @@ func (b *Bitmap) nextSetMany32(buffer []uint32) {
 	}
 }
 
+// NextMany returns many next bit sets from the specified index,
+// including possibly the current index and up to cap(buffer).
+// If the returned slice has len zero, then no more set bits were found
+//
+//    buffer := make([]uint32, 256) // this should be reused
+//    j := uint32(0)
+//    j, buffer = bitmap.NextMany(j, buffer)
+//    for ; len(buffer) > 0; j, buffer = bitmap.NextMany(j,buffer) {
+//     for k := range buffer {
+//      do something with buffer[k]
+//     }
+//     j += 1
+//    }
+//
+//
+// It is possible to retrieve all set bits as follow:
+//
+//    indices := make([]uint32, bitmap.Count())
+//    bitmap.NextMany(0, indices)
+//
+// However if bitmap.Count() is large, it might be preferable to
+// use several calls to NextSetMany, for performance reasons.
+func (b *Bitmap) NextMany(i uint32, buffer []uint32) (uint32, []uint32) {
+	myanswer := buffer
+	capacity := cap(buffer)
+	x := int(i >> log2WordSize)
+	if x >= len(b.set) || capacity == 0 {
+		return 0, myanswer[:0]
+	}
+	skip := i & (wordSize - 1)
+	word := b.set[x] >> skip
+	myanswer = myanswer[:capacity]
+	size := int(0)
+	for word != 0 {
+		r := bits.TrailingZeros64(word)
+		t := word & ((^word) + 1)
+		myanswer[size] = uint32(r) + i
+		size++
+		if size == capacity {
+			goto End
+		}
+		word = word ^ t
+	}
+	x++
+	for idx, word := range b.set[x:] {
+		for word != 0 {
+			r := bits.TrailingZeros64(word)
+			t := word & ((^word) + 1)
+			myanswer[size] = uint32(r) + (uint32(x+idx) << 6)
+			size++
+			if size == capacity {
+				goto End
+			}
+			word = word ^ t
+		}
+	}
+End:
+	if size > 0 {
+		return myanswer[size-1], myanswer[:size]
+	}
+	return 0, myanswer[:0]
+}
+
 // And computes the intersection between the bitmaps and returns the result.
 func AndBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {
