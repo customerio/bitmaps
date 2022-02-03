@@ -387,6 +387,64 @@ End:
 	return 0, myanswer[:0]
 }
 
+// NextMany2 appends many next bit sets from the specified index,
+// including possibly the current index and up to limit.
+// If more is true, there are additional bits to be added.
+//
+//    buffer := uint32{}
+//    j := uint32(0)
+//	  for {
+//		  var more bool
+//		  buf, more = v.NextMany2(j, buf, 10)
+//		  if !more {
+//			  break
+//		  }
+//        do something with buf
+//        buf = buf[:0] // possible clear buffer
+//		  j = buf[len(buf)-1] + 1
+//	}
+//
+// It is possible to retrieve all set bits as follow:
+//
+//    indices := make([]uint32, 0, bitmap.Count())
+//    bitmap.NextMany2(0, indices, bitmap.Count())
+//
+// However if bitmap.Count() is large, it might be preferable to
+// use several calls to NextMany2, for performance reasons.
+func (b *Bitmap) NextMany2(i uint32, buffer []uint32, limit int) ([]uint32, bool) {
+	size := 0
+	x := int(i >> log2WordSize)
+	if x >= len(b.set) || limit == 0 {
+		return buffer, false
+	}
+	skip := i & (wordSize - 1)
+	word := b.set[x] >> skip
+	for word != 0 {
+		r := bits.TrailingZeros64(word)
+		t := word & ((^word) + 1)
+		buffer = append(buffer, uint32(r)+i)
+		size++
+		if size == limit {
+			return buffer, true
+		}
+		word = word ^ t
+	}
+	x++
+	for idx, word := range b.set[x:] {
+		for word != 0 {
+			r := bits.TrailingZeros64(word)
+			t := word & ((^word) + 1)
+			buffer = append(buffer, uint32(r)+(uint32(x+idx)<<6))
+			size++
+			if size == limit {
+				return buffer, true
+			}
+			word = word ^ t
+		}
+	}
+	return buffer, false
+}
+
 // And computes the intersection between the bitmaps and returns the result.
 func AndBitmaps(nbits int, bitmaps ...*Bitmap) *Bitmap {
 	if len(bitmaps) == 0 {

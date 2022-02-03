@@ -167,6 +167,59 @@ func TestIterate(t *testing.T) {
 	}
 }
 
+func TestIterate2(t *testing.T) {
+	v := NewBitmap(nbits)
+	v.Add(0)
+	v.Add(1)
+	v.Add(2)
+	buf := make([]uint32, 0, 10)
+	j := uint32(0)
+	for {
+		var more bool
+		buf, more = v.NextMany2(j, buf, 1)
+		if !more {
+			break
+		}
+		j = buf[len(buf)-1] + 1
+	}
+	if buf[0] != 0 {
+		t.Errorf("bug 0")
+	}
+	if buf[1] != 1 {
+		t.Errorf("bug 1")
+	}
+	if buf[2] != 2 {
+		t.Errorf("bug 2")
+	}
+	v.Add(10)
+	v.Add(2000)
+	j = uint32(0)
+	buf = buf[:0]
+	for {
+		var more bool
+		buf, more = v.NextMany2(j, buf, 1)
+		if !more {
+			break
+		}
+		j = buf[len(buf)-1] + 1
+	}
+	if buf[0] != 0 {
+		t.Errorf("bug 0")
+	}
+	if buf[1] != 1 {
+		t.Errorf("bug 1")
+	}
+	if buf[2] != 2 {
+		t.Errorf("bug 2")
+	}
+	if buf[3] != 10 {
+		t.Errorf("bug 3")
+	}
+	if buf[4] != 2000 {
+		t.Errorf("bug 4")
+	}
+}
+
 func TestOrBitmaps(t *testing.T) {
 	a := NewBitmap(nbits)
 	b := NewBitmap(nbits)

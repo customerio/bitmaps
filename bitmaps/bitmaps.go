@@ -189,46 +189,30 @@ func (b *Bitmaps) ToArray() []uint32 {
 	return a
 }
 
-// NextMany returns many next bit sets from the specified index,
-// including possibly the current index and up to cap(buffer).
-// If the returned slice has len zero, then no more set bits were found
-//
-//    buffer := make([]uint32, 256) // this should be reused
-//    j := uint32(0)
-//    j, buffer = bitmap.NextMany(j, buffer)
-//    for ; len(buffer) > 0; j, buffer = bitmap.NextMany(j,buffer) {
-//     for k := range buffer {
-//      do something with buffer[k]
-//     }
-//     j += 1
-//    }
-//
-//
-// It is possible to retrieve all set bits as follow:
-//
-//    indices := make([]uint32, bitmap.Count())
-//    bitmap.NextMany(0, indices)
-//
-// However if bitmap.Count() is large, it might be preferable to
-// use several calls to NextSetMany, for performance reasons.
-func (b *Bitmaps) NextMany(i uint32, buffer []uint32) (uint32, []uint32) {
+func (b *Bitmaps) NextMany2(i uint32, buffer []uint32, limit int) ([]uint32, bool) {
 	chunk := uint32(i) / b.sz.Bits
 	offset := uint32(i) % b.sz.Bits
 
+	size := 0
+	buf := make([]uint32, 0, limit)
 	for int(chunk) < len(b.b) {
 		if b.b[chunk] != nil {
-			offset, buffer = b.b[chunk].NextMany(offset, buffer)
-			if len(buffer) > 0 {
-				for i := range buffer {
-					buffer[i] = chunk*b.sz.Bits + buffer[i]
+			buf, _ = b.b[chunk].NextMany2(offset, buf, limit-size)
+			size += len(buf)
+			if len(buf) > 0 {
+				for _, v := range buf {
+					buffer = append(buffer, chunk*b.sz.Bits+v)
 				}
-				return chunk*b.sz.Bits + offset, buffer
+			}
+			buf = buf[:0]
+			if size == limit {
+				return buffer, true
 			}
 		}
 		chunk++
 		offset = 0
 	}
-	return 0, buffer[:0]
+	return buffer, false
 }
 
 // And computes the intersection between the bitmaps and returns the result.
