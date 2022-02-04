@@ -261,6 +261,33 @@ func (b *Bitmaps) NextMany(i uint32, buffer []uint32, limit int) ([]uint32, bool
 	return buffer, false
 }
 
+// NextManyInt is a helper for NextManyInt to operate on int not uint32.
+func (b *Bitmaps) NextManyInt(i int, buffer []int, limit int) ([]int, bool) {
+	chunk := uint32(i) / b.sz.Bits
+	offset := uint32(i) % b.sz.Bits
+
+	size := 0
+	buf := make([]uint32, 0, limit)
+	for int(chunk) < len(b.b) {
+		if b.b[chunk] != nil {
+			buf, _ = b.b[chunk].NextMany(offset, buf, limit-size)
+			size += len(buf)
+			if len(buf) > 0 {
+				for _, v := range buf {
+					buffer = append(buffer, int(chunk*b.sz.Bits+v))
+				}
+			}
+			buf = buf[:0]
+			if size == limit {
+				return buffer, true
+			}
+		}
+		chunk++
+		offset = 0
+	}
+	return buffer, false
+}
+
 // Range returns all bits set after the start index to the stop index.
 // index 0 1 2 3 4 5
 // bit   0 2 4 6 8 10
