@@ -211,6 +211,27 @@ func (b *Bitmaps) EachBatch(batchSize int, process func([]uint32) (bool, error))
 	return nil
 }
 
+// EachBatchInt is a helper for EachBatch which calls with int offsets.
+func (b *Bitmaps) EachBatchInt(batchSize int, process func([]int) (bool, error)) error {
+	buf := make([]int, 0, batchSize)
+	offset := 0
+	for {
+		buf, _ = b.NextManyInt(offset, buf, batchSize)
+		if len(buf) == 0 {
+			break
+		}
+		if done, err := process(buf); err != nil {
+			return err
+		} else if done {
+			return nil
+		}
+		offset = buf[len(buf)-1] + 1
+		buf = buf[:0]
+	}
+
+	return nil
+}
+
 // NextMany appends many next bit sets from the specified index,
 // including possibly the current index and up to limit.
 // If more is true, there are additional bits to be added.
