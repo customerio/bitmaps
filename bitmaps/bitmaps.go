@@ -261,6 +261,43 @@ func (b *Bitmaps) NextMany(i uint32, buffer []uint32, limit int) ([]uint32, bool
 	return buffer, false
 }
 
+// Range returns all bits set after the start index to the stop index.
+// index 0 1 2 3 4 5
+// bit   0 2 4 6 8 10
+// Range(2,3) == 2,4
+func (m *Bitmaps) Range(start, stop int) []uint32 {
+	offsets := make([]uint32, 0, stop-start)
+	var cur int
+
+	for chunk, b := range m.b {
+		if b == nil {
+			continue
+		}
+		// If our current position is less then the start position
+		// for the results we want to return, move past this bitmap
+		if card := int(b.GetCardinality()); cur+card < start {
+			cur += card
+			continue
+		}
+
+		// If our current position is past the stop position for the
+		// results we want to return, we can stop iterating through bitmaps
+		if cur >= stop {
+			break
+		}
+
+		for _, offset := range b.ToArray() {
+			// if our current position is in the range, add it to our result set
+			if cur >= start && cur < stop {
+				offsets = append(offsets, uint32(chunk)*m.sz.Bits+offset)
+			}
+			cur++
+		}
+	}
+
+	return offsets
+}
+
 // And computes the intersection between the bitmaps and returns the result.
 func AndBitmaps(sz Size, bitmaps ...*Bitmaps) *Bitmaps {
 	if len(bitmaps) == 0 {

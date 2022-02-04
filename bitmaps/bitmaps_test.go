@@ -372,6 +372,32 @@ func TestEachBatch(t *testing.T) {
 	}
 }
 
+func TestRange(t *testing.T) {
+	v := New(Size{Bits: 2, Chunks: 250}) // 500 bits.
+	bit := 0
+	data := []uint32{}
+	for i := 0; i < 250; i++ {
+		v.Add(uint32(bit))
+		data = append(data, uint32(bit))
+		bit += 2
+	}
+	i := 0
+	for {
+		batch := v.Range(i, i+1)
+		i++
+		if len(batch) == 0 {
+			break
+		}
+		if batch[0] != data[0] {
+			t.Fatalf("bug %d != %d", batch[0], data[0])
+		}
+		data = data[1:]
+	}
+	if len(data) != 0 {
+		t.Errorf("bug -- still have data")
+	}
+}
+
 /*
 func TestFlipRange(t *testing.T) {
 	b := New(sz)
