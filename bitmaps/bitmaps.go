@@ -50,7 +50,7 @@ func (b *Bitmaps) GetBitmaps() []*fixed.Bitmap {
 // And computes the intersection between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmaps) And(o *Bitmaps) {
 	if len(b.b) != len(o.b) {
-		return
+		panic("cannot AND two bitmaps with different cardinality")
 	}
 	for i := 0; i < len(b.b); i++ {
 		if b.b[i] == nil {
@@ -66,7 +66,7 @@ func (b *Bitmaps) And(o *Bitmaps) {
 // Or computes the union between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmaps) Or(o *Bitmaps) {
 	if len(b.b) != len(o.b) {
-		return
+		panic("cannot OR two bitmaps with different cardinality")
 	}
 	for i := 0; i < len(b.b); i++ {
 		if b.b[i] == nil && o.b[i] != nil {
@@ -81,7 +81,7 @@ func (b *Bitmaps) Or(o *Bitmaps) {
 // Or computes the union between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmaps) AndNot(o *Bitmaps) {
 	if len(b.b) != len(o.b) {
-		return
+		panic("cannot AND NOT two bitmaps with different cardinality")
 	}
 	for i := 0; i < len(b.b); i++ {
 		if b.b[i] != nil && o.b[i] != nil {
@@ -189,7 +189,53 @@ func (b *Bitmaps) ToArray() []uint32 {
 	return a
 }
 
-func (b *Bitmaps) NextMany2(i uint32, buffer []uint32, limit int) ([]uint32, bool) {
+// EachBatch calls process for each of the integers stored in the Bitmap.
+// If process returns true, the iteration stops.
+func (b *Bitmaps) EachBatch(batchSize int, process func([]uint32) (bool, error)) error {
+	buf := make([]uint32, 0, batchSize)
+	offset := uint32(0)
+	for {
+		buf, _ = b.NextMany(offset, buf, batchSize)
+		if len(buf) == 0 {
+			break
+		}
+		if done, err := process(buf); err != nil {
+			return err
+		} else if done {
+			return nil
+		}
+		offset = buf[len(buf)-1] + 1
+		buf = buf[:0]
+	}
+
+	return nil
+}
+
+// NextMany appends many next bit sets from the specified index,
+// including possibly the current index and up to limit.
+// If more is true, there are additional bits to be added.
+//
+//    buffer := uint32{}
+//    j := uint32(0)
+//	  for {
+//		  var more bool
+//		  buf, more = v.NextMany2(j, buf, 10)
+//		  if !more {
+//			  break
+//		  }
+//        do something with buf
+//        buf = buf[:0] // possible clear buffer
+//		  j = buf[len(buf)-1] + 1
+//	}
+//
+// It is possible to retrieve all set bits as follow:
+//
+//    indices := make([]uint32, 0, bitmap.Count())
+//    bitmap.NextMany2(0, indices, bitmap.Count())
+//
+// However if bitmap.Count() is large, it might be preferable to
+// use several calls to NextMany2, for performance reasons.
+func (b *Bitmaps) NextMany(i uint32, buffer []uint32, limit int) ([]uint32, bool) {
 	chunk := uint32(i) / b.sz.Bits
 	offset := uint32(i) % b.sz.Bits
 
@@ -197,7 +243,7 @@ func (b *Bitmaps) NextMany2(i uint32, buffer []uint32, limit int) ([]uint32, boo
 	buf := make([]uint32, 0, limit)
 	for int(chunk) < len(b.b) {
 		if b.b[chunk] != nil {
-			buf, _ = b.b[chunk].NextMany2(offset, buf, limit-size)
+			buf, _ = b.b[chunk].NextMany(offset, buf, limit-size)
 			size += len(buf)
 			if len(buf) > 0 {
 				for _, v := range buf {

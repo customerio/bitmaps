@@ -124,59 +124,11 @@ func TestIterate(t *testing.T) {
 	v.Add(0)
 	v.Add(1)
 	v.Add(2)
-	data := []uint32{}
-	buf := make([]uint32, 1)
-	j := uint32(0)
-	j, buf = v.NextMany(j, buf)
-	for ; len(buf) > 0; j, buf = v.NextMany(j, buf) {
-		data = append(data, buf[0])
-		j++
-	}
-	if data[0] != 0 {
-		t.Errorf("bug 0")
-	}
-	if data[1] != 1 {
-		t.Errorf("bug 1")
-	}
-	if data[2] != 2 {
-		t.Errorf("bug 2")
-	}
-	v.Add(10)
-	v.Add(2000)
-	data = nil
-	j = uint32(0)
-	j, buf = v.NextMany(j, buf)
-	for ; len(buf) > 0; j, buf = v.NextMany(j, buf) {
-		data = append(data, buf[0])
-		j++
-	}
-	if data[0] != 0 {
-		t.Errorf("bug 0")
-	}
-	if data[1] != 1 {
-		t.Errorf("bug 1")
-	}
-	if data[2] != 2 {
-		t.Errorf("bug 2")
-	}
-	if data[3] != 10 {
-		t.Errorf("bug 3")
-	}
-	if data[4] != 2000 {
-		t.Errorf("bug 4")
-	}
-}
-
-func TestIterate2(t *testing.T) {
-	v := NewBitmap(nbits)
-	v.Add(0)
-	v.Add(1)
-	v.Add(2)
 	buf := make([]uint32, 0, 10)
 	j := uint32(0)
 	for {
 		var more bool
-		buf, more = v.NextMany2(j, buf, 1)
+		buf, more = v.NextMany(j, buf, 1)
 		if !more {
 			break
 		}
@@ -197,7 +149,7 @@ func TestIterate2(t *testing.T) {
 	buf = buf[:0]
 	for {
 		var more bool
-		buf, more = v.NextMany2(j, buf, 1)
+		buf, more = v.NextMany(j, buf, 1)
 		if !more {
 			break
 		}

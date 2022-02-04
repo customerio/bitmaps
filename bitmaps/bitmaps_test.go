@@ -276,7 +276,7 @@ func TestIterate(t *testing.T) {
 	j := uint32(0)
 	for {
 		var more bool
-		buf, more = v.NextMany2(j, buf, 1)
+		buf, more = v.NextMany(j, buf, 1)
 		if !more {
 			break
 		}
@@ -297,7 +297,7 @@ func TestIterate(t *testing.T) {
 	buf = buf[:0]
 	for {
 		var more bool
-		buf, more = v.NextMany2(j, buf, 1)
+		buf, more = v.NextMany(j, buf, 1)
 		if !more {
 			break
 		}
@@ -331,7 +331,7 @@ func TestIterateSplit(t *testing.T) {
 	j := uint32(0)
 	for {
 		var more bool
-		buf, more = v.NextMany2(j, buf, 3)
+		buf, more = v.NextMany(j, buf, 3)
 		if !more {
 			break
 		}
@@ -345,6 +345,30 @@ func TestIterateSplit(t *testing.T) {
 		}
 		buf = buf[1:]
 		bit += 2
+	}
+}
+
+func TestEachBatch(t *testing.T) {
+	v := New(Size{Bits: 2, Chunks: 250}) // 500 bits.
+	bit := 0
+	data := []uint32{}
+	for i := 0; i < 250; i++ {
+		v.Add(uint32(bit))
+		data = append(data, uint32(bit))
+		bit += 2
+	}
+	v.EachBatch(1, func(batch []uint32) (bool, error) {
+		if len(batch) != 1 {
+			t.Errorf("wrong batch size")
+		}
+		if batch[0] != data[0] {
+			t.Errorf("bug %d != %d", batch[0], data[0])
+		}
+		data = data[1:]
+		return false, nil
+	})
+	if len(data) != 0 {
+		t.Errorf("bug -- still have data")
 	}
 }
 
