@@ -53,11 +53,9 @@ func (b *Bitmaps) And(o *Bitmaps) {
 		panic("cannot AND two bitmaps with different cardinality")
 	}
 	for i := 0; i < len(b.b); i++ {
-		if b.b[i] == nil {
-			o.b[i] = nil
-		} else if o.b[i] == nil {
+		if o.b[i] == nil {
 			b.b[i] = nil
-		} else {
+		} else if b.b[i] != nil {
 			b.b[i].And(o.b[i])
 		}
 	}
