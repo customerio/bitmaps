@@ -144,6 +144,14 @@ func (b *Bitmap) Clone() *Bitmap {
 	return b1
 }
 
+// Clear sets all bits to 0.
+func (b *Bitmap) Clear() {
+	for i := 0; i < len(b.set); i++ {
+		b.set[i] = 0
+	}
+	b.cardinality = 0
+}
+
 // And computes the intersection between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmap) And(o *Bitmap) {
 	l := len(o.set)
@@ -232,27 +240,52 @@ func (b *Bitmap) IsEmpty() bool {
 	return b.cardinality == 0
 }
 
+var bitmapMask [wordSize]uint64
+
+func init() {
+	for v := 0; v < wordSize; v++ {
+		bitmapMask[v] = uint64(1 << (v & (wordSize - 1)))
+	}
+}
+
 // Add the integer x to the bitmap.
-func (b *Bitmap) Add(v uint32) {
-	idx := v >> log2WordSize
-	previous := b.set[idx]
-	mask := uint64(1 << (v & (wordSize - 1)))
-	newb := previous | mask
-	b.set[idx] = newb
-	b.cardinality += int((previous ^ newb) >> (v & (wordSize - 1)))
+func (b *Bitmap) Add(v uint32) bool {
+	// We're not going to range check here as we'd rather have
+	// a crash than a silent corruption.
+	//if int(v) >= b.nbits {
+	//return false
+	//}
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	if has := b.set[idx] & bitmapMask[pos]; has > 0 {
+		return false
+	}
+
+	b.set[idx] |= bitmapMask[pos]
+	b.cardinality++
+	return true
 }
 
 // AddInt adds the integer x to the bitmap (convenience method: the parameter is casted to uint32 and we call Add).
-func (b *Bitmap) AddInt(v int) {
-	b.Add(uint32(v))
+func (b *Bitmap) AddInt(v int) bool {
+	return b.Add(uint32(v))
 }
 
 // Remove the integer x from the bitmap.
-func (b *Bitmap) Remove(v uint32) {
-	if b.Contains(v) {
+func (b *Bitmap) Remove(v uint32) bool {
+	// We're not going to range check here as we'd rather have
+	// a crash than a silent corruption.
+	//if int(v) >= b.nbits {
+	//return false
+	//}
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	if has := b.set[idx] & bitmapMask[pos]; has > 0 {
 		b.cardinality--
-		b.set[v>>log2WordSize] &^= 1 << (v & (wordSize - 1))
+		b.set[idx] ^= bitmapMask[pos]
+		return true
 	}
+	return false
 }
 
 // Contains returns true if the integer is contained in the bitmap.
@@ -262,7 +295,9 @@ func (b *Bitmap) Contains(v uint32) bool {
 	//if int(v) >= b.nbits {
 	//return false
 	//}
-	return b.set[v>>log2WordSize]&(1<<(v&(wordSize-1))) != 0
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	return b.set[idx]&bitmapMask[pos] > 0
 }
 
 // ToArray creates a new slice containing all of the integers stored in the Bitmap in sorted order
