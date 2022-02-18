@@ -7,41 +7,58 @@ import (
 
 var nbits = 30000
 
+func TestAdd(t *testing.T) {
+	b := NewBitmap(nbits)
+	arr := []uint32{}
+	for v := uint32(0); v < uint32(nbits); v += 100 {
+		if !b.Add(v) {
+			t.Error("Add failed")
+		}
+		if b.Add(v) {
+			t.Error("Add failed")
+		}
+		arr = append(arr, v)
+	}
+	if !reflect.DeepEqual(b.ToArray(), arr) {
+		t.Error("Add failed")
+	}
+}
+
 func TestConvert(t *testing.T) {
 	b := NewBitmap(nbits)
-	for v := uint32(0); v < uint32(30000); v += 2 {
+	for v := uint32(0); v < uint32(nbits); v += 2 {
 		b.Add(v)
 	}
 }
 
 func TestClone(t *testing.T) {
 	b := NewBitmap(nbits)
-	for v := uint32(0); v < uint32(30000); v += 2 {
+	for v := uint32(0); v < uint32(nbits); v += 2 {
 		b.Add(v)
 	}
 	b1 := NewBitmap(nbits)
-	for v := uint32(1); v < uint32(30000); v += 2 {
+	for v := uint32(1); v < uint32(nbits); v += 2 {
 		b1.Add(v)
 	}
 	for i := 0; i < 100; i++ {
 		c := b.Clone()
 		c.Or(b1)
-		if b.GetCardinality() != 15000 {
+		if b.GetCardinality() != uint64(nbits/2) {
 			t.Error("Or failed")
 			return
 		}
-		if c.GetCardinality() != 30000 {
+		if c.GetCardinality() != uint64(nbits) {
 			t.Error("Or failed")
 			return
 		}
 
 		c = b1.Clone()
 		c.Or(b)
-		if b.GetCardinality() != 15000 {
+		if b.GetCardinality() != uint64(nbits/2) {
 			t.Error("Or failed")
 			return
 		}
-		if c.GetCardinality() != 30000 {
+		if c.GetCardinality() != uint64(nbits) {
 			t.Error("Or failed")
 			return
 		}
@@ -50,14 +67,14 @@ func TestClone(t *testing.T) {
 
 func TestOrShort(t *testing.T) {
 	b := NewBitmap(nbits)
-	for v := uint32(0); v < uint32(30000); v += 100 {
+	for v := uint32(0); v < uint32(nbits); v += 100 {
 		o := NewBitmap(nbits)
 		for vv := v; vv < v+100; vv++ {
 			o.Add(vv)
 		}
 		b.Or(o)
 	}
-	if b.GetCardinality() != 30000 {
+	if b.GetCardinality() != uint64(nbits) {
 		t.Error("Or failed")
 		return
 	}
@@ -116,6 +133,80 @@ func TestRemove(t *testing.T) {
 	if !a.IsEmpty() {
 		t.Error("bitmap should be empty")
 		return
+	}
+
+	b := NewBitmap(nbits)
+	for v := uint32(0); v < uint32(nbits); v += 100 {
+		b.Add(v)
+	}
+	for v := uint32(0); v < uint32(nbits); v += 100 {
+		if !b.Remove(v) {
+			t.Error("Remove failed")
+		}
+		if b.Remove(v) {
+			t.Error("Remove failed")
+		}
+	}
+	if b.GetCardinality() != 0 {
+		t.Error("bitmap should be empty")
+		return
+	}
+	if !b.IsEmpty() {
+		t.Error("bitmap should be empty")
+		return
+	}
+}
+
+func TestIterate(t *testing.T) {
+	v := NewBitmap(nbits)
+	v.Add(0)
+	v.Add(1)
+	v.Add(2)
+	buf := make([]uint32, 0, 10)
+	j := uint32(0)
+	for {
+		var more bool
+		buf, more = v.NextMany(j, buf, 1)
+		if !more {
+			break
+		}
+		j = buf[len(buf)-1] + 1
+	}
+	if buf[0] != 0 {
+		t.Errorf("bug 0")
+	}
+	if buf[1] != 1 {
+		t.Errorf("bug 1")
+	}
+	if buf[2] != 2 {
+		t.Errorf("bug 2")
+	}
+	v.Add(10)
+	v.Add(2000)
+	j = uint32(0)
+	buf = buf[:0]
+	for {
+		var more bool
+		buf, more = v.NextMany(j, buf, 1)
+		if !more {
+			break
+		}
+		j = buf[len(buf)-1] + 1
+	}
+	if buf[0] != 0 {
+		t.Errorf("bug 0")
+	}
+	if buf[1] != 1 {
+		t.Errorf("bug 1")
+	}
+	if buf[2] != 2 {
+		t.Errorf("bug 2")
+	}
+	if buf[3] != 10 {
+		t.Errorf("bug 3")
+	}
+	if buf[4] != 2000 {
+		t.Errorf("bug 4")
 	}
 }
 
@@ -341,7 +432,7 @@ func TestMarshalUnmarshalSmall(t *testing.T) {
 
 func TestMarshalUnmarshalBig(t *testing.T) {
 	b := NewBitmap(nbits)
-	for v := uint32(0); v < uint32(30000); v += 2 {
+	for v := uint32(0); v < uint32(nbits); v += 2 {
 		b.Add(v)
 	}
 	buf, err := b.Marshal()
@@ -356,5 +447,52 @@ func TestMarshalUnmarshalBig(t *testing.T) {
 	}
 	if !b1.Equals(b) {
 		t.Error("bitmaps should be equal")
+	}
+}
+
+func BenchmarkAdd(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		bits := NewBitmap(nbits)
+		for i := uint32(0); i < uint32(nbits); i++ {
+			bits.Add(i)
+		}
+	}
+}
+
+func BenchmarkAddTwice(b *testing.B) {
+	bits := NewBitmap(nbits)
+	for i := uint32(0); i < uint32(nbits); i++ {
+		bits.Add(i)
+	}
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		for i := uint32(0); i < uint32(nbits); i++ {
+			bits.Add(i)
+		}
+	}
+}
+
+func BenchmarkRemove(b *testing.B) {
+	bits := NewBitmap(nbits)
+	for i := uint32(0); i < uint32(nbits); i++ {
+		bits.Add(i)
+	}
+	for n := 0; n < b.N; n++ {
+		b2 := bits.Clone()
+		for i := uint32(0); i < uint32(nbits); i++ {
+			b2.Remove(i)
+		}
+	}
+}
+
+func BenchmarkContains(b *testing.B) {
+	bits := NewBitmap(nbits)
+	for i := uint32(0); i < uint32(nbits); i++ {
+		bits.Add(i)
+	}
+	for n := 0; n < b.N; n++ {
+		for i := uint32(0); i < uint32(nbits); i++ {
+			bits.Contains(i)
+		}
 	}
 }

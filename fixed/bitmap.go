@@ -144,6 +144,14 @@ func (b *Bitmap) Clone() *Bitmap {
 	return b1
 }
 
+// Clear sets all bits to 0.
+func (b *Bitmap) Clear() {
+	for i := 0; i < len(b.set); i++ {
+		b.set[i] = 0
+	}
+	b.cardinality = 0
+}
+
 // And computes the intersection between two bitmaps and stores the result in the current bitmap.
 func (b *Bitmap) And(o *Bitmap) {
 	l := len(o.set)
@@ -232,27 +240,52 @@ func (b *Bitmap) IsEmpty() bool {
 	return b.cardinality == 0
 }
 
+var bitmapMask [wordSize]uint64
+
+func init() {
+	for v := 0; v < wordSize; v++ {
+		bitmapMask[v] = uint64(1 << (v & (wordSize - 1)))
+	}
+}
+
 // Add the integer x to the bitmap.
-func (b *Bitmap) Add(v uint32) {
-	idx := v >> log2WordSize
-	previous := b.set[idx]
-	mask := uint64(1 << (v & (wordSize - 1)))
-	newb := previous | mask
-	b.set[idx] = newb
-	b.cardinality += int((previous ^ newb) >> (v & (wordSize - 1)))
+func (b *Bitmap) Add(v uint32) bool {
+	// We're not going to range check here as we'd rather have
+	// a crash than a silent corruption.
+	//if int(v) >= b.nbits {
+	//return false
+	//}
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	if has := b.set[idx] & bitmapMask[pos]; has > 0 {
+		return false
+	}
+
+	b.set[idx] |= bitmapMask[pos]
+	b.cardinality++
+	return true
 }
 
 // AddInt adds the integer x to the bitmap (convenience method: the parameter is casted to uint32 and we call Add).
-func (b *Bitmap) AddInt(v int) {
-	b.Add(uint32(v))
+func (b *Bitmap) AddInt(v int) bool {
+	return b.Add(uint32(v))
 }
 
 // Remove the integer x from the bitmap.
-func (b *Bitmap) Remove(v uint32) {
-	if b.Contains(v) {
+func (b *Bitmap) Remove(v uint32) bool {
+	// We're not going to range check here as we'd rather have
+	// a crash than a silent corruption.
+	//if int(v) >= b.nbits {
+	//return false
+	//}
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	if has := b.set[idx] & bitmapMask[pos]; has > 0 {
 		b.cardinality--
-		b.set[v>>log2WordSize] &^= 1 << (v & (wordSize - 1))
+		b.set[idx] ^= bitmapMask[pos]
+		return true
 	}
+	return false
 }
 
 // Contains returns true if the integer is contained in the bitmap.
@@ -262,7 +295,9 @@ func (b *Bitmap) Contains(v uint32) bool {
 	//if int(v) >= b.nbits {
 	//return false
 	//}
-	return b.set[v>>log2WordSize]&(1<<(v&(wordSize-1))) != 0
+	idx := v >> log2WordSize // Fast div 64
+	pos := v & 0x3F          // Fast mod 64
+	return b.set[idx]&bitmapMask[pos] > 0
 }
 
 // ToArray creates a new slice containing all of the integers stored in the Bitmap in sorted order
@@ -322,6 +357,64 @@ func (b *Bitmap) nextSetMany32(buffer []uint32) {
 			word = word ^ t
 		}
 	}
+}
+
+// NextMany appends many next bit sets from the specified index,
+// including possibly the current index and up to limit.
+// If more is true, there are additional bits to be added.
+//
+//    buffer := uint32{}
+//    j := uint32(0)
+//	  for {
+//		  var more bool
+//		  buf, more = v.NextMany2(j, buf, 10)
+//		  if !more {
+//			  break
+//		  }
+//        do something with buf
+//        buf = buf[:0] // possible clear buffer
+//		  j = buf[len(buf)-1] + 1
+//	}
+//
+// It is possible to retrieve all set bits as follow:
+//
+//    indices := make([]uint32, 0, bitmap.Count())
+//    bitmap.NextMany2(0, indices, bitmap.Count())
+//
+// However if bitmap.Count() is large, it might be preferable to
+// use several calls to NextMany2, for performance reasons.
+func (b *Bitmap) NextMany(i uint32, buffer []uint32, limit int) ([]uint32, bool) {
+	size := 0
+	x := int(i >> log2WordSize)
+	if x >= len(b.set) || limit == 0 {
+		return buffer, false
+	}
+	skip := i & (wordSize - 1)
+	word := b.set[x] >> skip
+	for word != 0 {
+		r := bits.TrailingZeros64(word)
+		t := word & ((^word) + 1)
+		buffer = append(buffer, uint32(r)+i)
+		size++
+		if size == limit {
+			return buffer, true
+		}
+		word = word ^ t
+	}
+	x++
+	for idx, word := range b.set[x:] {
+		for word != 0 {
+			r := bits.TrailingZeros64(word)
+			t := word & ((^word) + 1)
+			buffer = append(buffer, uint32(r)+(uint32(x+idx)<<6))
+			size++
+			if size == limit {
+				return buffer, true
+			}
+			word = word ^ t
+		}
+	}
+	return buffer, false
 }
 
 // And computes the intersection between the bitmaps and returns the result.
