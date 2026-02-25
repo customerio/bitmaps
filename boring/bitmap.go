@@ -21,6 +21,7 @@ var (
 
 	// For storing uint16 the buffer has capacity to store 1,875 uint16 (30k/16)
 
+	// bitmapMagic is the format identifier written to the header of every marshaled bitmap.
 	bitmapMagic    = uint32(0xFAD4F00D)
 	encodingBitmap = byte(0xF0)
 	encodingArray  = byte(0x0F)

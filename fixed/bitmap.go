@@ -15,6 +15,7 @@ var (
 
 	headerSize = 8
 
+	// bitmapMagic is the format identifier written to the header of every marshaled bitmap.
 	bitmapMagic    = uint32(0xFAD4F00D)
 	encodingBitmap = byte(0xF0)
 	encodingArray  = byte(0x0F)
@@ -85,6 +86,7 @@ func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 
 	case encodingArray:
 		b := NewBitmap(nbits)
+		// Each array entry is a uint16 (2 bytes).
 		if len(buf[headerSize:])/2 != int(h.cardinality) {
 			return nil, fmt.Errorf("array encoding expects %d bytes", h.cardinality*2)
 		}
@@ -158,6 +160,7 @@ func (b *Bitmap) UnmarshalBinary(buf []byte) error {
 		return nil
 
 	case encodingArray:
+		// Each array entry is a uint16 (2 bytes).
 		if len(buf[headerSize:])/2 != int(h.cardinality) {
 			return fmt.Errorf("array encoding expects %d bytes", h.cardinality*2)
 		}
