@@ -8,6 +8,15 @@ import (
 	"unsafe"
 )
 
+// ErrBadMagic is returned when the header of a marshaled bitmap does not match the expected format identifier.
+var ErrBadMagic = errors.New("bad magic")
+
+// ErrInvalidData is returned when the marshaled data is too short to contain a valid header.
+var ErrInvalidData = errors.New("invalid data")
+
+// ErrBadEncoding is returned when the header contains an unrecognized encoding type.
+var ErrBadEncoding = errors.New("bad encoding")
+
 // Note that the marshaled form of the bitmap is not portable -- it is assumed to be the
 // same endianness as the machine that created the marshaled form
 var (
@@ -15,6 +24,7 @@ var (
 
 	headerSize = 8
 
+	// bitmapMagic is the format identifier written to the header of every marshaled bitmap.
 	bitmapMagic    = uint32(0xFAD4F00D)
 	encodingBitmap = byte(0xF0)
 	encodingArray  = byte(0x0F)
@@ -56,12 +66,12 @@ func NewBitmap(nbits int) *Bitmap {
 // is copied, otherwise it may be used by the bitmap itself.
 func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 	if len(buf) < headerSize {
-		return nil, errors.New("invalid data")
+		return nil, ErrInvalidData
 	}
 	var h header
 	h.read(buf)
 	if h.magic != bitmapMagic {
-		return nil, errors.New("bad magic")
+		return nil, ErrBadMagic
 	}
 
 	totalSize := totalSize(nbits)
@@ -85,6 +95,7 @@ func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 
 	case encodingArray:
 		b := NewBitmap(nbits)
+		// Each array entry is a uint16 (2 bytes).
 		if len(buf[headerSize:])/2 != int(h.cardinality) {
 			return nil, fmt.Errorf("array encoding expects %d bytes", h.cardinality*2)
 		}
@@ -97,7 +108,7 @@ func NewBitmapFromBuf(buf []byte, nbits int, copyBuffer bool) (*Bitmap, error) {
 		return b, nil
 	}
 
-	return nil, fmt.Errorf("bad encoding")
+	return nil, ErrBadEncoding
 }
 
 // Bytes returns a pointer to the content of the bitmap.
@@ -134,6 +145,45 @@ func (b *Bitmap) Marshal() ([]byte, error) {
 		b.nextSetMany16(data)
 	}
 	return buf, nil
+}
+
+// UnmarshalBinary decodes a marshaled form into the bitmap's existing storage.
+func (b *Bitmap) UnmarshalBinary(buf []byte) error {
+	if len(buf) < headerSize {
+		return ErrInvalidData
+	}
+	var h header
+	h.read(buf)
+	if h.magic != bitmapMagic {
+		return ErrBadMagic
+	}
+
+	switch h.encoding {
+	case encodingBitmap:
+		ts := totalSize(b.nbits)
+		if len(buf) != ts {
+			return fmt.Errorf("bitmap expects %d bytes", ts)
+		}
+		copy(b.buf[headerSize:], buf[headerSize:])
+		b.cardinality = int(h.cardinality)
+		return nil
+
+	case encodingArray:
+		// Each array entry is a uint16 (2 bytes).
+		if len(buf[headerSize:])/2 != int(h.cardinality) {
+			return fmt.Errorf("array encoding expects %d bytes", h.cardinality*2)
+		}
+		b.Clear()
+		if h.cardinality > 0 {
+			data := toUint16Slice(buf[headerSize:], int(h.cardinality))
+			for _, v := range data {
+				b.Add(uint32(v))
+			}
+		}
+		return nil
+	}
+
+	return ErrBadEncoding
 }
 
 // Clone creates a copy of the bitmap.
