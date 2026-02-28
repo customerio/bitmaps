@@ -196,9 +196,7 @@ func (b *Bitmap) Clone() *Bitmap {
 
 // Clear sets all bits to 0.
 func (b *Bitmap) Clear() {
-	for i := 0; i < len(b.set); i++ {
-		b.set[i] = 0
-	}
+	clear(b.set)
 	b.cardinality = 0
 }
 
@@ -413,23 +411,23 @@ func (b *Bitmap) nextSetMany32(buffer []uint32) {
 // including possibly the current index and up to limit.
 // If more is true, there are additional bits to be added.
 //
-//    buffer := uint32{}
-//    j := uint32(0)
-//	  for {
-//		  var more bool
-//		  buf, more = v.NextMany2(j, buf, 10)
-//		  if !more {
-//			  break
-//		  }
-//        do something with buf
-//        buf = buf[:0] // possible clear buffer
-//		  j = buf[len(buf)-1] + 1
-//	}
+//	   buffer := uint32{}
+//	   j := uint32(0)
+//		  for {
+//			  var more bool
+//			  buf, more = v.NextMany2(j, buf, 10)
+//			  if !more {
+//				  break
+//			  }
+//	       do something with buf
+//	       buf = buf[:0] // possible clear buffer
+//			  j = buf[len(buf)-1] + 1
+//		}
 //
 // It is possible to retrieve all set bits as follow:
 //
-//    indices := make([]uint32, 0, bitmap.Count())
-//    bitmap.NextMany2(0, indices, bitmap.Count())
+//	indices := make([]uint32, 0, bitmap.Count())
+//	bitmap.NextMany2(0, indices, bitmap.Count())
 //
 // However if bitmap.Count() is large, it might be preferable to
 // use several calls to NextMany2, for performance reasons.
