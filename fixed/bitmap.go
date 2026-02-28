@@ -204,7 +204,7 @@ func (b *Bitmap) Clear() {
 func (b *Bitmap) And(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] & o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -216,7 +216,7 @@ func (b *Bitmap) And(o *Bitmap) {
 func (b *Bitmap) Or(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] | o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -228,7 +228,7 @@ func (b *Bitmap) Or(o *Bitmap) {
 func (b *Bitmap) AndNot(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] &^ o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -270,7 +270,7 @@ func (b *Bitmap) Equals(o *Bitmap) bool {
 		return false
 	}
 	l := len(o.set)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if b.set[i] != o.set[i] {
 			return false
 		}
@@ -291,7 +291,7 @@ func (b *Bitmap) IsEmpty() bool {
 var bitmapMask [wordSize]uint64
 
 func init() {
-	for v := 0; v < wordSize; v++ {
+	for v := range wordSize {
 		bitmapMask[v] = uint64(1 << (v & (wordSize - 1)))
 	}
 }
