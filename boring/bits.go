@@ -46,7 +46,7 @@ func (b *bitmap) remove(v uint32) {
 func (b *bitmap) and(o bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] & o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -57,7 +57,7 @@ func (b *bitmap) and(o bitmap) {
 func (b *bitmap) or(o bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] | o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -68,7 +68,7 @@ func (b *bitmap) or(o bitmap) {
 func (b *bitmap) andNot(o bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] &^ o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -103,7 +103,7 @@ func (b *bitmap) computeCardinality() uint64 {
 
 func (b *bitmap) equals(o bitmap) bool {
 	l := len(o.set)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if b.set[i] != o.set[i] {
 			return false
 		}
@@ -113,7 +113,7 @@ func (b *bitmap) equals(o bitmap) bool {
 
 func (b *bitmap) equalsArray(o array) bool {
 	l := len(o.content)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if !b.contains(uint32(o.content[i])) {
 			return false
 		}

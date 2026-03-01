@@ -196,9 +196,7 @@ func (b *Bitmap) Clone() *Bitmap {
 
 // Clear sets all bits to 0.
 func (b *Bitmap) Clear() {
-	for i := 0; i < len(b.set); i++ {
-		b.set[i] = 0
-	}
+	clear(b.set)
 	b.cardinality = 0
 }
 
@@ -206,7 +204,7 @@ func (b *Bitmap) Clear() {
 func (b *Bitmap) And(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] & o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -218,7 +216,7 @@ func (b *Bitmap) And(o *Bitmap) {
 func (b *Bitmap) Or(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] | o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -230,7 +228,7 @@ func (b *Bitmap) Or(o *Bitmap) {
 func (b *Bitmap) AndNot(o *Bitmap) {
 	l := len(o.set)
 	cnt := 0
-	for i := 0; i < l; i++ {
+	for i := range l {
 		v := b.set[i] &^ o.set[i]
 		cnt += bits.OnesCount64(v)
 		b.set[i] = v
@@ -272,7 +270,7 @@ func (b *Bitmap) Equals(o *Bitmap) bool {
 		return false
 	}
 	l := len(o.set)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if b.set[i] != o.set[i] {
 			return false
 		}
@@ -293,7 +291,7 @@ func (b *Bitmap) IsEmpty() bool {
 var bitmapMask [wordSize]uint64
 
 func init() {
-	for v := 0; v < wordSize; v++ {
+	for v := range wordSize {
 		bitmapMask[v] = uint64(1 << (v & (wordSize - 1)))
 	}
 }
@@ -413,23 +411,23 @@ func (b *Bitmap) nextSetMany32(buffer []uint32) {
 // including possibly the current index and up to limit.
 // If more is true, there are additional bits to be added.
 //
-//    buffer := uint32{}
-//    j := uint32(0)
-//	  for {
-//		  var more bool
-//		  buf, more = v.NextMany2(j, buf, 10)
-//		  if !more {
-//			  break
-//		  }
-//        do something with buf
-//        buf = buf[:0] // possible clear buffer
-//		  j = buf[len(buf)-1] + 1
-//	}
+//	   buffer := uint32{}
+//	   j := uint32(0)
+//		  for {
+//			  var more bool
+//			  buf, more = v.NextMany2(j, buf, 10)
+//			  if !more {
+//				  break
+//			  }
+//	       do something with buf
+//	       buf = buf[:0] // possible clear buffer
+//			  j = buf[len(buf)-1] + 1
+//		}
 //
 // It is possible to retrieve all set bits as follow:
 //
-//    indices := make([]uint32, 0, bitmap.Count())
-//    bitmap.NextMany2(0, indices, bitmap.Count())
+//	indices := make([]uint32, 0, bitmap.Count())
+//	bitmap.NextMany2(0, indices, bitmap.Count())
 //
 // However if bitmap.Count() is large, it might be preferable to
 // use several calls to NextMany2, for performance reasons.

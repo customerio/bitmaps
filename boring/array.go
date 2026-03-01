@@ -92,7 +92,7 @@ func (b *array) andNotBitmap(o bitmap) {
 
 func (b *array) equals(o array) bool {
 	l := len(b.content)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if b.content[i] != o.content[i] {
 			return false
 		}
@@ -102,19 +102,12 @@ func (b *array) equals(o array) bool {
 
 func (b *array) equalsBitmap(o bitmap) bool {
 	l := len(b.content)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		if !o.contains(uint32(b.content[i])) {
 			return false
 		}
 	}
 	return true
-}
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 func binarySearch(array []uint16, ikey uint16) int {
@@ -380,7 +373,7 @@ func advanceUntil(
 func difference(set1 []uint16, set2 []uint16, buffer []uint16) int {
 	if 0 == len(set2) {
 		buffer = buffer[:len(set1)]
-		for k := 0; k < len(set1); k++ {
+		for k := range set1 {
 			buffer[k] = set1[k]
 		}
 		return len(set1)
